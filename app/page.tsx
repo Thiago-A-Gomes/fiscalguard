@@ -1,0 +1,93 @@
+'use client';
+
+import { ChangeEvent, DragEvent, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, CheckCircle2, Download, FileSearch, FileText, Info, ShieldCheck, UploadCloud, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
+type Severity = 'Crítico' | 'Atenção' | 'Informativo';
+type Invoice = { fileName: string; key: string; number: string; issuer: string; cnpj: string; date: string; total: number; itemTotal: number; products: { description: string; ncm: string; cfop: string }[]; hasCbsIbs: boolean };
+type Finding = { id: string; severity: Severity; rule: string; document: string; detail: string; suggestion: string };
+
+const demoFindings: Finding[] = [
+  { id: 'demo-1', severity: 'Crítico', rule: 'Total da nota', document: 'NF 1842', detail: 'Soma dos itens (R$ 8.420,00) difere do total informado (R$ 8.120,00).', suggestion: 'Revisar itens, descontos, frete e totalização do documento.' },
+  { id: 'demo-2', severity: 'Atenção', rule: 'Classificação NCM', document: 'NF 1839', detail: 'Produto “Cabo flexível 10 mm” aparece sem código NCM.', suggestion: 'Confirmar a classificação fiscal do produto com o responsável tributário.' },
+  { id: 'demo-3', severity: 'Informativo', rule: 'CBS e IBS', document: 'NF 1837', detail: 'Não foram localizados grupos de CBS ou IBS no XML.', suggestion: 'Verificar a exigência para o leiaute e período de emissão deste documento.' },
+];
+const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const elements = (root: ParentNode, name: string) => Array.from(root.querySelectorAll('*')).filter((node) => node.localName === name);
+const firstText = (root: ParentNode, name: string) => elements(root, name)[0]?.textContent?.trim() ?? '';
+
+function isValidCnpj(value: string) {
+  const digits = value.replace(/\D/g, '');
+  if (digits.length !== 14 || /^(\d)\1+$/.test(digits)) return false;
+  const digit = (base: string, factors: number[]) => { const sum = factors.reduce((acc, factor, index) => acc + Number(base[index]) * factor, 0); const result = 11 - (sum % 11); return result >= 10 ? 0 : result; };
+  const d1 = digit(digits, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  const d2 = digit(digits, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  return digits.endsWith(`${d1}${d2}`);
+}
+
+function parseInvoice(xml: string, fileName: string): Invoice {
+  const document = new DOMParser().parseFromString(xml, 'application/xml');
+  if (document.querySelector('parsererror')) throw new Error('XML inválido');
+  const infNFe = elements(document, 'infNFe')[0];
+  if (!infNFe) throw new Error('o arquivo não contém uma NF-e reconhecível');
+  const emit = elements(infNFe, 'emit')[0]; const ide = elements(infNFe, 'ide')[0]; const total = elements(infNFe, 'ICMSTot')[0];
+  const productNodes = elements(infNFe, 'prod');
+  const products = productNodes.map((product) => ({ description: firstText(product, 'xProd'), ncm: firstText(product, 'NCM'), cfop: firstText(product, 'CFOP') }));
+  const itemTotal = productNodes.reduce((sum, product) => sum + Number(firstText(product, 'vProd') || 0), 0);
+  const taxNames = elements(infNFe, 'imposto').flatMap((node) => Array.from(node.querySelectorAll('*')).map((item) => item.localName));
+  return { fileName, key: infNFe.getAttribute('Id')?.replace(/^NFe/, '') || firstText(document, 'chNFe'), number: firstText(ide, 'nNF') || '—', issuer: firstText(emit, 'xNome') || 'Emitente não informado', cnpj: firstText(emit, 'CNPJ'), date: firstText(ide, 'dhEmi') || firstText(ide, 'dEmi'), total: Number(firstText(total, 'vNF') || 0), itemTotal, products, hasCbsIbs: taxNames.some((name) => /^(IBS|CBS|IBSCBS)/i.test(name)) };
+}
+
+function analyze(invoices: Invoice[]): Finding[] {
+  const results: Finding[] = []; const keyCount = new Map<string, number>();
+  invoices.forEach((invoice) => invoice.key && keyCount.set(invoice.key, (keyCount.get(invoice.key) ?? 0) + 1));
+  invoices.forEach((invoice, invoiceIndex) => {
+    const doc = `NF ${invoice.number}`;
+    const add = (severity: Severity, rule: string, detail: string, suggestion: string) => results.push({ id: `${invoiceIndex}-${rule}-${results.length}`, severity, rule, document: doc, detail, suggestion });
+    if (invoice.key && (keyCount.get(invoice.key) ?? 0) > 1) add('Crítico', 'Documento duplicado', 'A mesma chave de acesso foi enviada mais de uma vez.', 'Manter apenas uma ocorrência antes da escrituração.');
+    if (Math.abs(invoice.itemTotal - invoice.total) > 0.01) add('Crítico', 'Total da nota', `A soma bruta dos itens (${money.format(invoice.itemTotal)}) difere do vNF (${money.format(invoice.total)}).`, 'Revisar descontos, frete, tributos e totalização; esta checagem é indicativa.');
+    if (!isValidCnpj(invoice.cnpj)) add('Crítico', 'CNPJ do emitente', `O CNPJ “${invoice.cnpj || 'não informado'}” não passou na validação matemática.`, 'Conferir o cadastro e o XML autorizado.');
+    invoice.products.forEach((product, productIndex) => {
+      if (!/^\d{8}$/.test(product.ncm)) add('Atenção', 'Classificação NCM', `Item ${productIndex + 1} — “${product.description || 'sem descrição'}” — possui NCM ausente ou fora do formato de 8 dígitos.`, 'Confirmar a classificação com o responsável tributário.');
+      if (!/^\d{4}$/.test(product.cfop)) add('Atenção', 'Código CFOP', `Item ${productIndex + 1} possui CFOP “${product.cfop || 'não informado'}”.`, 'Conferir o código da operação no documento fiscal.');
+    });
+    if (!invoice.hasCbsIbs) add('Informativo', 'CBS e IBS', 'Não foram localizados grupos de CBS ou IBS no XML.', 'Verificar a exigência aplicável ao leiaute e período de emissão.');
+  });
+  const productNcms = new Map<string, Set<string>>();
+  invoices.flatMap((invoice) => invoice.products).forEach((product) => { const name = product.description.toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ').trim(); if (!name || !product.ncm) return; if (!productNcms.has(name)) productNcms.set(name, new Set()); productNcms.get(name)!.add(product.ncm); });
+  productNcms.forEach((ncms, product) => { if (ncms.size > 1) results.push({ id: `ncm-${product}`, severity: 'Atenção', rule: 'NCM inconsistente', document: 'Várias notas', detail: `“${product}” aparece com os códigos ${Array.from(ncms).join(', ')}.`, suggestion: 'Revisar o cadastro fiscal do produto.' }); });
+  return results;
+}
+
+const severityStyle = (severity: Severity) => severity === 'Crítico' ? 'border-rose-200 bg-rose-50 text-rose-700' : severity === 'Atenção' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-sky-200 bg-sky-50 text-sky-700';
+
+export default function Home() {
+  const inputRef = useRef<HTMLInputElement>(null); const [invoices, setInvoices] = useState<Invoice[]>([]); const [errors, setErrors] = useState<string[]>([]); const [dragging, setDragging] = useState(false); const [showDemo, setShowDemo] = useState(true);
+  const findings = useMemo(() => invoices.length ? analyze(invoices) : showDemo ? demoFindings : [], [invoices, showDemo]);
+  const critical = findings.filter((item) => item.severity === 'Crítico').length; const attention = findings.filter((item) => item.severity === 'Atenção').length;
+  async function handleFiles(fileList: FileList | File[]) { const files = Array.from(fileList).filter((file) => file.name.toLowerCase().endsWith('.xml')); const parsed: Invoice[] = []; const failures: string[] = []; for (const file of files) { try { parsed.push(parseInvoice(await file.text(), file.name)); } catch (error) { failures.push(`${file.name}: ${error instanceof Error ? error.message : 'não foi possível ler'}`); } } setInvoices((current) => [...current, ...parsed]); setErrors(failures); setShowDemo(false); }
+  function onInput(event: ChangeEvent<HTMLInputElement>) { if (event.target.files) void handleFiles(event.target.files); event.target.value = ''; }
+  function onDrop(event: DragEvent<HTMLDivElement>) { event.preventDefault(); setDragging(false); void handleFiles(event.dataTransfer.files); }
+  function exportCsv() { const rows = [['Severidade', 'Regra', 'Documento', 'Detalhe', 'Recomendação'], ...findings.map((item) => [item.severity, item.rule, item.document, item.detail, item.suggestion])]; const csv = '\uFEFF' + rows.map((row) => row.map((cell) => `"${cell.replaceAll('"', '""')}"`).join(';')).join('\r\n'); const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); const link = document.createElement('a'); link.href = url; link.download = 'relatorio-fiscalguard.csv'; link.click(); URL.revokeObjectURL(url); }
+  return (
+    <main className="min-h-screen bg-[#f5f6f2] text-slate-950">
+      <header className="border-b border-emerald-950/10 bg-[#f5f6f2]/95"><div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 lg:px-8"><div className="flex items-center gap-3"><span className="grid size-9 place-items-center rounded-xl bg-emerald-900 text-white"><ShieldCheck className="size-5" /></span><div><p className="font-semibold tracking-tight">FiscalGuard</p><p className="text-[11px] text-slate-500">Auditoria preventiva de NF-e</p></div></div><Badge variant="outline" className="border-emerald-900/15 bg-white/60 text-emerald-950">MVP • análise local</Badge></div></header>
+      <div className="mx-auto max-w-7xl px-5 py-8 lg:px-8 lg:py-10">
+        <section className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end"><div><p className="mb-2 text-xs font-semibold uppercase tracking-[.18em] text-emerald-700">Painel de conformidade</p><h1 className="max-w-2xl text-3xl font-semibold tracking-[-.035em] md:text-4xl">Encontre inconsistências antes do fechamento fiscal.</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">Envie XMLs de NF-e. Os arquivos são processados no seu navegador e não são armazenados neste MVP.</p></div>{findings.length > 0 && <Button variant="outline" size="lg" onClick={exportCsv} className="h-10 bg-white"><Download /> Exportar para Excel</Button>}</section>
+        <section className="grid gap-5 lg:grid-cols-[1.25fr_.75fr]">
+          <div onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={onDrop} className={`relative flex min-h-52 flex-col items-center justify-center rounded-2xl border-2 border-dashed p-7 text-center transition ${dragging ? 'border-emerald-600 bg-emerald-50' : 'border-emerald-950/15 bg-white'}`}><input ref={inputRef} onChange={onInput} type="file" accept=".xml,text/xml,application/xml" multiple className="sr-only" aria-label="Selecionar arquivos XML de NF-e" /><span className="mb-4 grid size-12 place-items-center rounded-2xl bg-emerald-100 text-emerald-800"><UploadCloud className="size-6" /></span><h2 className="text-lg font-semibold">Arraste os XMLs para cá</h2><p className="mt-1 text-sm text-slate-500">ou selecione vários arquivos de uma só vez</p><Button onClick={() => inputRef.current?.click()} className="mt-5 h-10 bg-emerald-900 px-4 text-white hover:bg-emerald-800"><FileSearch /> Selecionar XMLs</Button></div>
+          <aside className="rounded-2xl bg-emerald-950 p-6 text-white shadow-[0_18px_45px_-30px_rgba(2,44,34,.8)]"><div className="flex items-start justify-between"><div><p className="text-xs font-medium uppercase tracking-[.16em] text-emerald-300">Diagnóstico atual</p><p className="mt-2 text-3xl font-semibold">{invoices.length || '—'} <span className="text-base font-normal text-emerald-200">{invoices.length === 1 ? 'nota analisada' : 'notas analisadas'}</span></p></div><CheckCircle2 className="size-6 text-emerald-300" /></div><div className="mt-7 grid grid-cols-2 gap-3"><div className="rounded-xl bg-white/8 p-4"><p className="text-2xl font-semibold text-rose-300">{critical}</p><p className="mt-1 text-xs text-emerald-100/75">itens críticos</p></div><div className="rounded-xl bg-white/8 p-4"><p className="text-2xl font-semibold text-amber-300">{attention}</p><p className="mt-1 text-xs text-emerald-100/75">pontos de atenção</p></div></div><p className="mt-5 flex gap-2 text-xs leading-5 text-emerald-100/65"><Info className="mt-0.5 size-4 shrink-0" />Triagem automatizada e indicativa. A decisão tributária deve ser confirmada por profissional responsável.</p></aside>
+        </section>
+        {errors.length > 0 && <section className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4" aria-live="polite"><div className="flex items-start gap-3"><AlertTriangle className="mt-0.5 size-5 text-rose-600" /><div><p className="font-medium text-rose-900">Alguns arquivos não puderam ser analisados</p>{errors.map((error) => <p key={error} className="mt-1 text-sm text-rose-700">{error}</p>)}</div><button onClick={() => setErrors([])} className="ml-auto text-rose-700" aria-label="Fechar aviso"><X className="size-4" /></button></div></section>}
+        {invoices.length > 0 && <section className="mt-5 flex flex-wrap gap-2" aria-label="Arquivos carregados">{invoices.map((invoice, index) => <span key={`${invoice.fileName}-${index}`} className="inline-flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-xs text-slate-600"><FileText className="size-4 text-emerald-700" />{invoice.fileName}<button onClick={() => setInvoices((current) => current.filter((_, i) => i !== index))} aria-label={`Remover ${invoice.fileName}`}><X className="size-3.5" /></button></span>)}</section>}
+        <section className="mt-7 overflow-hidden rounded-2xl border border-emerald-950/10 bg-white"><div className="flex flex-col justify-between gap-3 border-b border-emerald-950/10 px-5 py-5 sm:flex-row sm:items-center"><div><div className="flex items-center gap-2"><h2 className="font-semibold">Inconsistências encontradas</h2>{showDemo && invoices.length === 0 && <Badge className="bg-slate-100 text-slate-600">Exemplo</Badge>}</div><p className="mt-1 text-sm text-slate-500">Cada alerta inclui uma ação sugerida para conferência.</p></div>{showDemo && <button onClick={() => setShowDemo(false)} className="text-left text-xs font-medium text-slate-500 underline-offset-4 hover:underline">Limpar exemplo</button>}</div>
+          {findings.length ? <Table><TableHeader><TableRow className="bg-slate-50/80"><TableHead className="pl-5">Severidade</TableHead><TableHead>Regra</TableHead><TableHead>Documento</TableHead><TableHead>Detalhe e recomendação</TableHead></TableRow></TableHeader><TableBody>{findings.map((finding) => <TableRow key={finding.id}><TableCell className="pl-5 align-top"><Badge variant="outline" className={severityStyle(finding.severity)}>{finding.severity}</Badge></TableCell><TableCell className="align-top font-medium">{finding.rule}</TableCell><TableCell className="align-top text-slate-500">{finding.document}</TableCell><TableCell className="min-w-[360px] whitespace-normal py-4"><p className="text-slate-700">{finding.detail}</p><p className="mt-1 text-xs leading-5 text-slate-500">Próximo passo: {finding.suggestion}</p></TableCell></TableRow>)}</TableBody></Table> : <div className="grid min-h-52 place-items-center p-8 text-center"><div><CheckCircle2 className="mx-auto size-9 text-emerald-600" /><p className="mt-3 font-medium">Nenhuma inconsistência encontrada</p><p className="mt-1 text-sm text-slate-500">Envie outros documentos para continuar a análise.</p></div></div>}
+        </section>
+        <footer className="mt-6 flex items-center gap-2 text-xs text-slate-500"><ShieldCheck className="size-4" /> FiscalGuard v0.1 — validações iniciais de estrutura e consistência.</footer>
+      </div>
+    </main>
+  );
+}
