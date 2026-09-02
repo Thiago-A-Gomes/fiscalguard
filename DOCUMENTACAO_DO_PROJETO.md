@@ -24,6 +24,10 @@ Sistema para analisar arquivos XML de NF-e, encontrar inconsistências antes do 
 │       ├── xml/nfe-parser.ts     adaptação XML → domínio
 │       └── security/             validação defensiva
 ├── components/ui/               componentes reutilizáveis
+├── server/
+│   ├── server.mjs               API HTTP e arquivos estáticos
+│   ├── db.mjs                   SQLite e consultas preparadas
+│   └── config.mjs               configuração por ambiente
 ├── public/                       favicon e imagem social
 ├── ARCHITECTURE.md               decisões arquiteturais
 ├── SECURITY.md                   controles e modelo de ameaças
@@ -37,11 +41,14 @@ Sistema para analisar arquivos XML de NF-e, encontrar inconsistências antes do 
 | Camada | Tecnologia |
 |---|---|
 | Interface | React 19 + TypeScript |
-| Aplicação web | Vinext/Vite |
+| Aplicação web | Vite 7 |
 | Componentes | shadcn + Base UI |
 | Estilos | Tailwind CSS |
 | Parsing | DOMParser do navegador, precedido por validação defensiva |
-| Hospedagem | OpenAI Sites / Cloudflare Workers |
+| Backend | Node.js HTTP |
+| Banco | SQLite via better-sqlite3 (WAL) |
+| Autenticação | Microsoft Entra ID / MSAL (preparada) |
+| Deploy | Docker multi-stage |
 
 ---
 
@@ -59,6 +66,11 @@ Sistema para analisar arquivos XML de NF-e, encontrar inconsistências antes do 
 - [x] Validações contra XML malicioso e consumo excessivo de recursos.
 - [x] Proteção contra CSV Injection.
 - [x] Cabeçalhos de segurança do navegador.
+- [x] Backend Node.js com CORS restrito e rate limiting.
+- [x] SQLite em modo WAL com consultas preparadas.
+- [x] Configuração Microsoft Entra ID por variáveis de ambiente.
+- [x] Docker executado como usuário sem privilégios.
+- [x] Testes automatizados de regras fiscais e segurança.
 
 ---
 

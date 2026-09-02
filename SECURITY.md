@@ -26,11 +26,15 @@ O MVP é uma aplicação sem login e sem banco de dados. XMLs são lidos na mem�
 - Proteção contra CSV Injection.
 - Cabeçalhos CSP, `nosniff`, anti-frame, política de referer e permissões do navegador.
 - Nenhum segredo, token fiscal ou credencial no frontend.
+- API com limite de 16 KB por corpo JSON, rate limiting e CORS por allowlist.
+- SQLite com consultas parametrizadas e restrições de integridade.
+- Container executado sem privilégios administrativos.
 
 ## Limitações importantes
 
 - A validação de estrutura ainda não usa o XSD oficial da NF-e.
 - A assinatura digital da NF-e ainda não é verificada.
+- O MSAL está preparado, mas a validação JWT no backend ainda é requisito para ativar autenticação e autorização.
 - O total dos itens é uma triagem simples; descontos, frete e tributos podem justificar diferenças.
 - Controles do navegador não substituem antivírus nem isolamento de arquivos.
 

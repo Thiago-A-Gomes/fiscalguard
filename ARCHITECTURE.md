@@ -10,7 +10,7 @@
 ## Camadas
 
 ```text
-Presentation (app/page.tsx)
+Presentation (React + Vite)
           |
           v
 Application (processInvoiceFiles + ports)
@@ -57,3 +57,7 @@ Não depende de React, DOMParser, rede ou armazenamento.
 ## Evolução planejada
 
 Uma versão multiusuário exigirá backend separado, autenticação forte, autorização por empresa, armazenamento criptografado, trilha de auditoria, retenção configurável e processamento assíncrono isolado.
+
+## Backend operacional
+
+O servidor Node.js em `server/` entrega o build do frontend e expõe uma API mínima. O SQLite registra somente metadados de auditoria; o conteúdo dos XMLs permanece no navegador. A autenticação Entra ID está preparada no frontend, mas deve ser ativada em conjunto com validação JWT no backend antes de proteger rotas reais.

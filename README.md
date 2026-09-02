@@ -9,13 +9,20 @@ npm install
 npm run dev
 ```
 
-Acesse `http://localhost:3000`.
+Em outro terminal, execute a API:
+
+```bash
+npm run server
+```
+
+Frontend: `http://127.0.0.1:3000`. API: `http://127.0.0.1:3333`.
 
 ## Validação
 
 ```bash
 npm run build
 npm run lint
+npm test
 ```
 
 ## Documentação
@@ -34,6 +41,7 @@ src/infrastructure/xml/     leitura de XML de NF-e
 src/infrastructure/security controles de entrada e exportação
 components/ui/              componentes visuais reutilizáveis
 public/                     arquivos públicos
+server/                     API Node.js e SQLite
 ```
 
 > Os alertas são indicativos e não substituem a revisão de um profissional fiscal.
