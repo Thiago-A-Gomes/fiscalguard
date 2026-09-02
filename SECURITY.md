@@ -34,7 +34,7 @@ O MVP é uma aplicação sem login e sem banco de dados. XMLs são lidos na mem�
 
 - A validação de estrutura ainda não usa o XSD oficial da NF-e.
 - A assinatura digital da NF-e ainda não é verificada.
-- O MSAL está preparado, mas a validação JWT no backend ainda é requisito para ativar autenticação e autorização.
+- O MVP não possui autenticação e não deve ser exposto publicamente com rotas administrativas ou dados compartilhados.
 - O total dos itens é uma triagem simples; descontos, frete e tributos podem justificar diferenças.
 - Controles do navegador não substituem antivírus nem isolamento de arquivos.
 

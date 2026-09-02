@@ -47,7 +47,6 @@ Sistema para analisar arquivos XML de NF-e, encontrar inconsistências antes do 
 | Parsing | DOMParser do navegador, precedido por validação defensiva |
 | Backend | Node.js HTTP |
 | Banco | SQLite via better-sqlite3 (WAL) |
-| Autenticação | Microsoft Entra ID / MSAL (preparada) |
 | Deploy | Docker multi-stage |
 
 ---
@@ -68,7 +67,6 @@ Sistema para analisar arquivos XML de NF-e, encontrar inconsistências antes do 
 - [x] Cabeçalhos de segurança do navegador.
 - [x] Backend Node.js com CORS restrito e rate limiting.
 - [x] SQLite em modo WAL com consultas preparadas.
-- [x] Configuração Microsoft Entra ID por variáveis de ambiente.
 - [x] Docker executado como usuário sem privilégios.
 - [x] Testes automatizados de regras fiscais e segurança.
 
