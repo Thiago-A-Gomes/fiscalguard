@@ -1,5 +1,7 @@
 # FiscalGuard
 
+[![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-0B5B4B.svg)](LICENSE)
+
 Aplicação web para triagem preventiva de arquivos XML de NF-e. O MVP processa os documentos localmente no navegador, aponta inconsistências e exporta um relatório compatível com Excel.
 
 ## Como executar
