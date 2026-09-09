@@ -56,8 +56,8 @@ Não depende de React, DOMParser, rede ou armazenamento.
 
 ## Evolução planejada
 
-Uma versão multiusuário exigirá backend separado, autenticação forte, autorização por empresa, armazenamento criptografado, trilha de auditoria, retenção configurável e processamento assíncrono isolado.
+A evolução multiempresa ainda exigirá autorização por tenant/CNPJ, MFA, armazenamento criptografado, retenção configurável e processamento assíncrono isolado.
 
 ## Backend operacional
 
-O servidor Node.js em `server/` entrega o build do frontend e expõe uma API mínima. O SQLite registra somente metadados de auditoria; o conteúdo dos XMLs permanece no navegador. O MVP não possui autenticação porque foi projetado para execução local e uso individual.
+O servidor Node.js em `server/` entrega o build do frontend e expõe uma API mínima. O SQLite registra somente metadados de auditoria; o conteúdo dos XMLs permanece no navegador. O acesso à interface e às rotas de auditoria exige uma sessão autenticada. O servidor mantém apenas hashes dos tokens de sessão, associa os eventos ao usuário e exige CSRF em operações de escrita. Consulte `AUTHENTICATION.md`.
