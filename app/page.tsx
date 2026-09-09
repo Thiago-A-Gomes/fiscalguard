@@ -1,6 +1,6 @@
 'use client';
 
-import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { ChangeEvent, DragEvent, SyntheticEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Download, FileSearch, FileText, Info, LogOut, ShieldCheck, UploadCloud, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -41,7 +41,7 @@ export default function Home() {
       .finally(() => setAuthLoading(false));
   }, []);
 
-  async function login(event: FormEvent<HTMLFormElement>) {
+  async function login(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault(); setLoginError('');
     const form = new FormData(event.currentTarget);
     const response = await fetch('/api/auth/login', {
