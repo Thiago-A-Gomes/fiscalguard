@@ -8,6 +8,7 @@
     "start": "node server/server.mjs",
     "dev": "vite --host 127.0.0.1",
     "server": "node server/server.mjs",
+    "hash-password": "node scripts/hash-password.mjs",
     "build": "tsc --noEmit -p tsconfig.json && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run",
