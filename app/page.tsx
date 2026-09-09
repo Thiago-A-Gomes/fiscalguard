@@ -1,7 +1,7 @@
 'use client';
 
-import { ChangeEvent, DragEvent, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Download, FileSearch, FileText, Info, ShieldCheck, UploadCloud, X } from 'lucide-react';
+import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, CheckCircle2, Download, FileSearch, FileText, Info, LogOut, ShieldCheck, UploadCloud, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -22,16 +22,76 @@ const demoFindings: Finding[] = [
 const severityStyle = (severity: Severity) => severity === 'Crítico' ? 'border-rose-200 bg-rose-50 text-rose-700' : severity === 'Atenção' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-sky-200 bg-sky-50 text-sky-700';
 
 export default function Home() {
-  const inputRef = useRef<HTMLInputElement>(null); const [invoices, setInvoices] = useState<Invoice[]>([]); const [errors, setErrors] = useState<string[]>([]); const [dragging, setDragging] = useState(false); const [showDemo, setShowDemo] = useState(true);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [dragging, setDragging] = useState(false);
+  const [showDemo, setShowDemo] = useState(true);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [userEmail, setUserEmail] = useState('');
+  const [csrfToken, setCsrfToken] = useState('');
+  const [loginError, setLoginError] = useState('');
   const findings = useMemo(() => invoices.length ? analyzeInvoices(invoices) : showDemo ? demoFindings : [], [invoices, showDemo]);
   const critical = findings.filter((item) => item.severity === 'Crítico').length; const attention = findings.filter((item) => item.severity === 'Atenção').length;
-  async function handleFiles(fileList: FileList | File[]) { try { const result = await processInvoiceFiles(Array.from(fileList), parser, securityPolicy); setInvoices((current) => [...current, ...result.invoices]); setErrors(result.failures); } catch (error) { setErrors([error instanceof Error ? error.message : 'Lote inválido.']); } setShowDemo(false); }
+  useEffect(() => {
+    fetch('/api/auth/me', { credentials: 'same-origin' })
+      .then(async (response) => response.ok ? response.json() : Promise.reject())
+      .then((data) => { setUserEmail(data.user.email); setCsrfToken(data.csrfToken); })
+      .catch(() => setUserEmail(''))
+      .finally(() => setAuthLoading(false));
+  }, []);
+
+  async function login(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setLoginError('');
+    const form = new FormData(event.currentTarget);
+    const response = await fetch('/api/auth/login', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: form.get('email'), password: form.get('password') }),
+    });
+    const data = await response.json();
+    if (!response.ok) return setLoginError(data.message ?? 'Não foi possível entrar.');
+    setUserEmail(data.user.email); setCsrfToken(data.csrfToken);
+  }
+
+  async function logout() {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-Token': csrfToken } });
+    setUserEmail(''); setCsrfToken(''); setInvoices([]);
+  }
+
+  async function handleFiles(fileList: FileList | File[]) {
+    try {
+      const result = await processInvoiceFiles(Array.from(fileList), parser, securityPolicy);
+      const nextInvoices = [...invoices, ...result.invoices];
+      setInvoices(nextInvoices); setErrors(result.failures);
+      await fetch('/api/audit', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+        body: JSON.stringify({ eventType: 'analysis_completed', documentCount: result.invoices.length, findingCount: analyzeInvoices(nextInvoices).length }),
+      });
+    } catch (error) { setErrors([error instanceof Error ? error.message : 'Lote inválido.']); }
+    setShowDemo(false);
+  }
   function onInput(event: ChangeEvent<HTMLInputElement>) { if (event.target.files) void handleFiles(event.target.files); event.target.value = ''; }
   function onDrop(event: DragEvent<HTMLDivElement>) { event.preventDefault(); setDragging(false); void handleFiles(event.dataTransfer.files); }
   function exportCsv() { const rows = [['Severidade', 'Regra', 'Documento', 'Detalhe', 'Recomendação'], ...findings.map((item) => [item.severity, item.rule, item.document, item.detail, item.suggestion])]; const csv = '\uFEFF' + rows.map((row) => row.map((cell) => `"${protectSpreadsheetCell(cell).replaceAll('"', '""')}"`).join(';')).join('\r\n'); const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); const link = document.createElement('a'); link.href = url; link.download = 'relatorio-fiscalguard.csv'; link.click(); URL.revokeObjectURL(url); }
+  if (authLoading) return <main className="grid min-h-screen place-items-center bg-[#f5f6f2] text-slate-600">Verificando acesso…</main>;
+  if (!userEmail) return (
+    <main className="grid min-h-screen place-items-center bg-[#f5f6f2] px-5">
+      <form onSubmit={login} className="w-full max-w-sm rounded-2xl border border-emerald-950/10 bg-white p-7 shadow-xl">
+        <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-emerald-900 text-white"><ShieldCheck /></span>
+        <h1 className="mt-4 text-center text-2xl font-semibold">Acessar o FiscalGuard</h1>
+        <p className="mt-2 text-center text-sm text-slate-500">Entre com sua conta autorizada.</p>
+        <label className="mt-6 block text-sm font-medium">E-mail<input name="email" type="email" required autoComplete="username" className="mt-2 h-11 w-full rounded-lg border px-3" /></label>
+        <label className="mt-4 block text-sm font-medium">Senha<input name="password" type="password" required minLength={12} autoComplete="current-password" className="mt-2 h-11 w-full rounded-lg border px-3" /></label>
+        {loginError && <p className="mt-3 text-sm text-rose-700" role="alert">{loginError}</p>}
+        <Button type="submit" className="mt-5 h-11 w-full bg-emerald-900 text-white hover:bg-emerald-800">Entrar</Button>
+      </form>
+    </main>
+  );
+
   return (
     <main className="min-h-screen bg-[#f5f6f2] text-slate-950">
-      <header className="border-b border-emerald-950/10 bg-[#f5f6f2]/95"><div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 lg:px-8"><div className="flex items-center gap-3"><span className="grid size-9 place-items-center rounded-xl bg-emerald-900 text-white"><ShieldCheck className="size-5" /></span><div><p className="font-semibold">FiscalGuard</p><p className="text-xs text-slate-600">Auditoria preventiva de NF-e</p></div></div><Badge variant="outline" className="border-emerald-900/15 bg-white/60 text-emerald-950">Análise local</Badge></div></header>
+      <header className="border-b border-emerald-950/10 bg-[#f5f6f2]/95"><div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 lg:px-8"><div className="flex items-center gap-3"><span className="grid size-9 place-items-center rounded-xl bg-emerald-900 text-white"><ShieldCheck className="size-5" /></span><div><p className="font-semibold">FiscalGuard</p><p className="text-xs text-slate-600">Auditoria preventiva de NF-e</p></div></div><div className="flex items-center gap-3"><span className="hidden text-xs text-slate-500 sm:inline">{userEmail}</span><Badge variant="outline" className="border-emerald-900/15 bg-white/60 text-emerald-950">Análise local</Badge><Button variant="ghost" size="sm" onClick={logout}><LogOut className="size-4" /> Sair</Button></div></div></header>
       <div className="mx-auto max-w-7xl px-5 py-8 lg:px-8 lg:py-10">
         <section className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end"><div><p className="mb-2 text-sm font-semibold text-emerald-800">Serviço de análise fiscal</p><h1 className="max-w-2xl text-3xl font-semibold">Verifique inconsistências antes do fechamento fiscal</h1><p className="mt-3 max-w-2xl text-base leading-7 text-slate-700">Envie arquivos XML de NF-e para realizar a análise. Os documentos são processados no navegador e não são armazenados.</p></div>{findings.length > 0 && <Button variant="outline" size="lg" onClick={exportCsv} className="h-10 bg-white"><Download /> Exportar para Excel</Button>}</section>
         <section className="grid gap-5 lg:grid-cols-[1.25fr_.75fr]">
