@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Documento sintético sem validade fiscal. -->
+<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+  <NFe><infNFe Id="NFe35260911222333000181550010000002001000002000" versao="4.00">
+    <ide><nNF>200</nNF><dhEmi>2026-09-09T09:00:00-03:00</dhEmi></ide>
+    <emit><CNPJ>11222333000181</CNPJ><xNome>EMPRESA DEMONSTRACAO LTDA</xNome></emit>
+    <det nItem="1"><prod><cProd>DEMO-001</cProd><xProd>Notebook corporativo</xProd><NCM>84713012</NCM><CFOP>5102</CFOP><vProd>3500.00</vProd></prod><imposto><IBSCBS><CBS><vCBS>0.00</vCBS></CBS></IBSCBS></imposto></det>
+    <total><ICMSTot><vProd>3500.00</vProd><vNF>3500.00</vNF></ICMSTot></total>
+  </infNFe></NFe>
+  <protNFe><infProt><chNFe>35260911222333000181550010000002001000002000</chNFe><cStat>100</cStat><xMotivo>DOCUMENTO FICTICIO</xMotivo></infProt></protNFe>
+</nfeProc>
