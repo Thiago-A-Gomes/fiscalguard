@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Documento sintético sem validade fiscal; erros são intencionais. -->
+<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+  <NFe><infNFe Id="NFe35260900000000000000550010000002021000002022" versao="4.00">
+    <ide><nNF>202</nNF><dhEmi>2026-09-09T09:30:00-03:00</dhEmi></ide>
+    <emit><CNPJ>00000000000000</CNPJ><xNome>FORNECEDOR FICTICIO COM CADASTRO INCOMPLETO</xNome></emit>
+    <det nItem="1"><prod><cProd>DEMO-003</cProd><xProd>Cabo flexivel 10 mm</xProd><NCM>8544</NCM><CFOP>51</CFOP><vProd>240.00</vProd></prod><imposto><ICMS><ICMS00><CST>00</CST></ICMS00></ICMS></imposto></det>
+    <total><ICMSTot><vProd>240.00</vProd><vNF>240.00</vNF></ICMSTot></total>
+  </infNFe></NFe>
+  <protNFe><infProt><chNFe>35260900000000000000550010000002021000002022</chNFe><cStat>100</cStat><xMotivo>DOCUMENTO FICTICIO</xMotivo></infProt></protNFe>
+</nfeProc>
