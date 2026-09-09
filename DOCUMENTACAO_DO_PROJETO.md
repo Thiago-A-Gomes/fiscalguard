@@ -27,7 +27,8 @@ Sistema para analisar arquivos XML de NF-e, encontrar inconsistências antes do 
 ├── server/
 │   ├── server.mjs               API HTTP e arquivos estáticos
 │   ├── db.mjs                   SQLite e consultas preparadas
-│   └── config.mjs               configuração por ambiente
+│   ├── config.mjs               configuração por ambiente
+│   └── auth.mjs                 sessões, cookies e proteção CSRF
 ├── public/                       favicon e imagem social
 ├── ARCHITECTURE.md               decisões arquiteturais
 ├── SECURITY.md                   controles e modelo de ameaças
@@ -47,6 +48,7 @@ Sistema para analisar arquivos XML de NF-e, encontrar inconsistências antes do 
 | Parsing | DOMParser do navegador, precedido por validação defensiva |
 | Backend | Node.js HTTP |
 | Banco | SQLite via better-sqlite3 (WAL) |
+| Autenticação | scrypt + sessões opacas em cookie HttpOnly |
 | Deploy | Docker multi-stage |
 
 ---
@@ -69,6 +71,8 @@ Sistema para analisar arquivos XML de NF-e, encontrar inconsistências antes do 
 - [x] SQLite em modo WAL com consultas preparadas.
 - [x] Docker executado como usuário sem privilégios.
 - [x] Testes automatizados de regras fiscais e segurança.
+- [x] Login administrativo, sessão curta e proteção CSRF.
+- [x] Rotas de auditoria restritas a usuários autenticados.
 
 ---
 
@@ -103,7 +107,8 @@ Sistema para analisar arquivos XML de NF-e, encontrar inconsistências antes do 
 
 ### Fase 3 — Produto multiusuário
 
-- [ ] Login corporativo e MFA.
+- [x] Login administrativo e sessões seguras.
+- [ ] Login corporativo, MFA e recuperação de conta.
 - [ ] Isolamento de dados por empresa/CNPJ.
 - [ ] Armazenamento criptografado com retenção configurável.
 - [ ] Trilhas de auditoria e perfis de acesso.
