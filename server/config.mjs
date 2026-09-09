@@ -6,9 +6,16 @@ loadDotEnv(resolve(process.cwd(), '.env'));
 export const config = {
   port: Number(process.env.SERVER_PORT ?? 3333),
   databasePath: resolve(process.cwd(), process.env.DATABASE_PATH ?? './data/fiscalguard.db'),
-  allowedOrigins: (process.env.ALLOWED_ORIGINS ?? 'http://127.0.0.1:3000,http://localhost:3000').split(',').map((value) => value.trim()),
+  allowedOrigins: (process.env.ALLOWED_ORIGINS ?? 'http://127.0.0.1:3000,http://localhost:3000').split(',').map((value) => value.trim()).filter(Boolean),
   isProduction: process.env.NODE_ENV === 'production',
+  adminEmail: String(process.env.ADMIN_EMAIL ?? '').trim().toLowerCase(),
+  adminPasswordHash: String(process.env.ADMIN_PASSWORD_HASH ?? '').trim(),
+  sessionTtlHours: Math.min(Math.max(Number(process.env.SESSION_TTL_HOURS) || 8, 1), 24),
 };
+
+if (!config.adminEmail || !config.adminPasswordHash) {
+  throw new Error('Configure ADMIN_EMAIL e ADMIN_PASSWORD_HASH antes de iniciar o servidor.');
+}
 
 function loadDotEnv(filePath) {
   if (!existsSync(filePath)) return;
