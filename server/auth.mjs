@@ -19,7 +19,7 @@ export function issueSession(user) {
   const token = randomBytes(32).toString('base64url');
   const csrfToken = randomBytes(24).toString('base64url');
   const expiresAt = new Date(Date.now() + config.sessionTtlHours * 3_600_000).toISOString();
-  createSessionRecord(hash(token), user.id, csrfToken, expiresAt);
+  createSessionRecord(hash(token), user.id, csrfToken, expiresAt.replace('T', ' ').replace('Z', ''));
   return { token, csrfToken, expiresAt };
 }
 
