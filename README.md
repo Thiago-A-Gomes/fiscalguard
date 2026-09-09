@@ -11,9 +11,12 @@ npm install
 npm run dev
 ```
 
-Em outro terminal, execute a API:
+Configure a conta administrativa antes de iniciar a API:
 
 ```bash
+npm run hash-password -- "uma-senha-longa-com-12-ou-mais-caracteres"
+cp .env.example .env
+# Preencha ADMIN_EMAIL e ADMIN_PASSWORD_HASH no .env
 npm run server
 ```
 
@@ -31,7 +34,8 @@ npm test
 
 - [DOCUMENTACAO_DO_PROJETO.md](./DOCUMENTACAO_DO_PROJETO.md): visão funcional, estrutura e roadmap.
 - [ARCHITECTURE.md](./ARCHITECTURE.md): camadas, dependências e decisões arquiteturais.
-- [SECURITY.md](./SECURITY.md): modelo de ameaças, controles existentes e próximos passos.
+- [SECURITY.md](./SECURITY.md): modelo de ameaças e controles existentes.
+- [AUTHENTICATION.md](./AUTHENTICATION.md): login, sessões, CSRF e configuração de credenciais.
 
 ## Estrutura resumida
 
